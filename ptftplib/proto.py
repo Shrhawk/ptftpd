@@ -112,6 +112,7 @@ TFTP_BLKSIZE_MAX = 65464
 
 TFTP_TIMEOUT_MIN = 1
 TFTP_TIMEOUT_MAX = 255
+BYTE_ZERO = b'\0'
 
 
 # noinspection PyPep8Naming
@@ -135,12 +136,24 @@ class TFTPHelper(object):
         l.debug("  >   %s: %s (mode: %s, opts: %s)" %
                 (TFTP_OPS[OP_RRQ], filename, mode, opts))
 
-        packet = struct.pack('!H%dsc%dsc' % (len(filename), len(mode)),
-                             OP_RRQ, filename, '\0', mode, '\0')
+
+        packet = struct.pack(
+            '!H%dsc%dsc' % (len(filename), len(mode)),
+            OP_RRQ,
+            str.encode(filename),
+            BYTE_ZERO,
+            str.encode(mode),
+            BYTE_ZERO
+        )
 
         for opt, val in opts.items():
-            packet += struct.pack('!%dsc%dsc' % (len(opt), len(str(val))),
-                                  opt, '\0', str(val), '\0')
+            packet += struct.pack(
+                '!%dsc%dsc' % (len(opt), len(str(val))),
+                str.encode(opt),
+                BYTE_ZERO,
+                str.encode(str(val)),
+                BYTE_ZERO
+            )
 
         return packet
 
@@ -159,12 +172,23 @@ class TFTPHelper(object):
         l.debug("  >   %s: %s (mode: %s, opts: %s)" %
                 (TFTP_OPS[OP_WRQ], filename, mode, opts))
 
-        packet = struct.pack('!H%dsc%dsc' % (len(filename), len(mode)),
-                             OP_WRQ, filename, '\0', mode, '\0')
+        packet = struct.pack(
+            '!H%dsc%dsc' % (len(filename), len(mode)),
+            OP_WRQ,
+            str.encode(filename),
+            BYTE_ZERO,
+            str.encode(mode),
+            BYTE_ZERO
+        )
 
         for opt, val in opts.items():
-            packet += struct.pack('!%dsc%dsc' % (len(opt), len(str(val))),
-                                  opt, '\0', str(val), '\0')
+            packet += struct.pack(
+                '!%dsc%dsc' % (len(opt), len(str(val))),
+                str.encode(opt),
+                BYTE_ZERO,
+                val,
+                BYTE_ZERO
+            )
 
         return packet
 
@@ -197,14 +221,18 @@ class TFTPHelper(object):
         Returns:
           The error packet as a string.
         """
-
         error = TFTP_ERRORS[errno]
         if errno == ERROR_UNDEF and errmsg:
             error = errmsg
 
         l.debug("  > %s: %d %s" % (TFTP_OPS[OP_ERROR], errno, error))
-        return struct.pack('!HH%dsc' % len(error),
-                           OP_ERROR, errno, error, '\0')
+        return struct.pack(
+            '!HH%dsc' % len(error),
+            OP_ERROR,
+            errno,
+            str.encode(error),
+            BYTE_ZERO
+        )
 
     def createDATA(num, data):
         """
@@ -235,7 +263,7 @@ class TFTPHelper(object):
 
         opts_str = ""
         for opt, val in opts.items():
-            opts_str += "%s%c%s%c" % (opt, '\0', val, '\0')
+            opts_str += "%s%c%s%c" % (opt, BYTE_ZERO, val, BYTE_ZERO)
 
         return struct.pack('!H%ds' % len(opts_str), OP_OACK, opts_str)
 
@@ -250,8 +278,7 @@ class TFTPHelper(object):
         Throws:
           If the parsing failed, a SyntaxError is raised.
         """
-
-        packet = request.split('\0')[:-1]
+        packet = request.split(BYTE_ZERO)[:-1]
 
         # If the length of the parsed list is not even, the packet is
         # malformed and thus parsing should fail.
@@ -378,11 +405,10 @@ class TFTPHelper(object):
         Throws:
           If the parsing failed, a SyntaxError is raised.
         """
-
         try:
             packet = struct.unpack('!H', request[:2])
             errno = packet[0]
-            errmsg = request[2:].split('\0')[0]
+            errmsg = request[2:].split(BYTE_ZERO)[0]
 
             l.debug("  < %s: %s" % (TFTP_OPS[OP_ERROR], errmsg))
             return errno, errmsg
@@ -398,8 +424,7 @@ class TFTPHelper(object):
         Returns:
           A dictionnary of the acknowledged options.
         """
-
-        packet = request.split('\0')[:-1]
+        packet = request.split(BYTE_ZERO)[:-1]
 
         # If the length of the parsed list is not even, the packet is
         # malformed and thus parsing should fail.
@@ -420,7 +445,6 @@ class TFTPHelper(object):
                 return struct.unpack('!H', data[:2])[0]
             except (struct.error, KeyError):
                 raise SyntaxError()
-
         return None
 
     def parse_options(opts):

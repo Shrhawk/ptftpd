@@ -108,6 +108,8 @@ class TFTPState(object):
             self.file.close()
         except AttributeError:
             pass
+        except TypeError:
+            pass
 
     def __str__(self):
         s = "TFTPState/%s for %s<%s>\n" % (proto.TFTP_OPS[self.op],
@@ -231,7 +233,7 @@ class TFTPState(object):
 
         try:
             self.filesize += len(self.data)
-            self.file.write(self.data)
+            self.file.write(self.data.decode())
         except IOError as e:
             self.file.close()
             if e.errno == errno.ENOSPC:

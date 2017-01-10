@@ -21,6 +21,7 @@
 
 
 from __future__ import print_function
+from io import StringIO
 
 try:
     # noinspection PyShadowingBuiltins
@@ -256,6 +257,7 @@ class TFTPClient(object):
 
             # Get the packet opcode and dispatch
             opcode = proto.TFTPHelper.getOP(request)
+
             if not opcode:
                 self.error = (True, None)
                 response = proto.TFTPHelper.createERROR(proto.ERROR_ILLEGAL_OP)
@@ -380,10 +382,6 @@ class TFTPClient(object):
         if not self.PTFTP_STATE:
             return proto.TFTPHelper.createERROR(proto.ERROR_UNKNOWN_ID)
 
-        if len(data) > self.PTFTP_STATE.opts[proto.TFTP_OPTION_BLKSIZE]:
-            self.error = (True, None)
-            return proto.TFTPHelper.createERROR(proto.ERROR_ILLEGAL_OP)
-
         if self.PTFTP_STATE.state == state.STATE_RECV:
             if num != self.PTFTP_STATE.packetnum:
                 self.error = (True, 'Got DATA with incoherent packet number.')
@@ -471,7 +469,7 @@ class TFTPClient(object):
             # We don't want tempfile to automatically delete the temporary
             # file on close() as we have to copy its content to the destination
             # file first. We'll handle it's deletion on our own.
-            self.PTFTP_STATE.file = tempfile.NamedTemporaryFile(delete=False)
+            self.PTFTP_STATE.file = StringIO()
             self.PTFTP_STATE.packetnum = 1
             self.PTFTP_STATE.state = state.STATE_RECV
         except IOError as e:
@@ -502,27 +500,13 @@ class TFTPClient(object):
             error, errmsg = self.error
             if error and errmsg:
                 print('Error: {}'.format(errmsg))
-            # Remove the temporary file on error. The destionation file,
-            # if it already existed, is left untouched.
-            self.PTFTP_STATE.file.close()
-            os.remove(self.PTFTP_STATE.file.name)
-            return False
-
-        # Copy the temporary file to its final destination
-        try:
-            shutil.copy(self.PTFTP_STATE.file.name, filename)
-        except IOError as e:
-            print('Error: {}'.format(os.strerror(e.errno)))
-            print('Can\'t copy temporary file to local file {}!'
-                  .format(filename))
-            return False
+            return [False, self.error]
 
         print('Transfer complete, {} bytes ({:.2f} kB/s)'
               .format(self.PTFTP_STATE.filesize,
                       self.__get_speed(self.PTFTP_STATE.filesize,
                                        transfer_time)))
         self.PTFTP_STATE.file.close()
-        os.remove(self.PTFTP_STATE.file.name)
         return True
 
     def put(self, args):
