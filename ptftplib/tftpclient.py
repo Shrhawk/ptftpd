@@ -500,7 +500,7 @@ class TFTPClient(object):
             error, errmsg = self.error
             if error and errmsg:
                 print('Error: {}'.format(errmsg))
-            return [False, self.error]
+            return [False, error, errmsg]
 
         print('Transfer complete, {} bytes ({:.2f} kB/s)'
               .format(self.PTFTP_STATE.filesize,
